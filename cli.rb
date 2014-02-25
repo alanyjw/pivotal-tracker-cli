@@ -11,6 +11,10 @@ class TimeShift
     login_for username, password
   end
 
+  def create_time_shift
+    create_new_shifts_page = agent.get ROOT_URL + 'time_shifts/new'
+  end
+
   def print_time_shifts_for start_date, end_date
     time_shifts_page = @agent.get ROOT_URL + 'time_shifts'
     user_id = time_shifts_page.parser.css('#shift_person_id option[selected="selected"]').attr('value').text()
@@ -75,11 +79,23 @@ password = ask("Password: ") { |q| q.echo = false }
 
 time_shift = TimeShift.new username, password
 
-default_start_date, default_end_date = get_current_period
+loop do
+  choose do |menu|
+    menu.header = "Options"
 
-start_date = ask("Start Date (MM/DD/YYYY): ") { |q| q.default = default_start_date }
-end_date = ask("End Date (MM/DD/YYYY): ") { |q| q.default = default_end_date }
+    menu.choice("Create a new time shift") do |command, details|
+    end
 
-time_shift.print_time_shifts_for start_date, end_date
+    menu.choice("List time shifts for a date range") do
+      default_start_date, default_end_date = get_current_period
 
-#create_new_shifts_page = agent.get ROOT_URL + 'time_shifts/new'
+      start_date = ask("Start Date (MM/DD/YYYY): ") { |q| q.default = default_start_date }
+      end_date = ask("End Date (MM/DD/YYYY): ") { |q| q.default = default_end_date }
+
+      time_shift.print_time_shifts_for start_date, end_date
+    end
+
+    menu.choice("Quit") { exit }
+  end
+end
+

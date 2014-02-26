@@ -4,6 +4,7 @@ require 'terminal-table'
 
 ROOT_URL = "http://pivotaltracker.com/"
 DATE_FORMAT = "%m/%d/%Y"
+LOCATION_ID = 23    # default location is Singapore
 
 class TimeShift
   def initialize username, password
@@ -11,8 +12,22 @@ class TimeShift
     login_for username, password
   end
 
-  def create_time_shift
-    create_new_shifts_page = agent.get ROOT_URL + 'time_shifts/new'
+  def projects
+    current_page = @agent.page
+    project_links = current_page.links.select { |link| link.href.match(/\/projects\/[0-9]+$/) }
+    project_links.map { |link| { id: link.href.match(/[0-9]+/)[0], name: link.text } }
+  end
+
+  def create_time_shift hours, description, project_id, location_id, date
+    create_new_shifts_page = @agent.get ROOT_URL + 'time_shifts/new'
+
+    form = create_new_shifts_page.forms[1]
+    form["shift[hours]"] = hours
+    form["shift[description]"] = description
+    form["shift[project_id]"] = project_id
+    form["shift[location_id]"] = location_id
+    form["shift[date]"] = date
+    form.submit
   end
 
   def print_time_shifts_for start_date, end_date
@@ -83,7 +98,24 @@ loop do
   choose do |menu|
     menu.header = "Options"
 
-    menu.choice("Create a new time shift") do |command, details|
+    menu.choice("Create a new time shift") do
+      hours = ask("Hours: ") { |q| q.default = '8' }
+      description = ask("Description: ") { |q| q.default = "" }
+      date = ask("Date: ") { |q| q.default = Date.today.strftime(DATE_FORMAT) }
+
+      projects_with_ids_and_names = time_shift.projects
+      projects_with_names = projects_with_ids_and_names.map { |p| p[:name] }
+
+      project_name = ""
+
+      choose do |project_menu|
+        project_menu.prompt = "Project: "
+        project_menu.choices(*projects_with_names) { |command| project_name = command }
+      end
+
+      project_id = projects_with_ids_and_names.select { |p| p[:name] == project_name } .first[:id]
+
+      time_shift.create_time_shift hours, description, project_id, LOCATION_ID, date
     end
 
     menu.choice("List time shifts for a date range") do
